@@ -1,7 +1,6 @@
-from scipy import optimize, interpolate
+from scipy import interpolate, stats
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
 
 # Metrics
 def r2(rs, x, y):
@@ -37,10 +36,10 @@ def merge_regressions(x, y, rs, id):
     r2, s2, e2 = rs[id + 1]
     res_before = np.abs(np.r_[get_residuals(rs[id], x, y), get_residuals(rs[id + 1], x, y)])
     
-    rs[id + 1] = sp.stats.linregress(x[s1:e2], y[s1:e2]), s1, e2
+    rs[id + 1] = stats.linregress(x[s1:e2], y[s1:e2]), s1, e2
     res_after = np.abs(get_residuals(rs[id + 1], x, y))
 
-    pvalue = sp.stats.mannwhitneyu(res_before, res_after, alternative="less")[1]
+    pvalue = stats.mannwhitneyu(res_before, res_after, alternative="less")[1]
 
     return rs[:id] + rs[id + 1:], pvalue
 
@@ -105,7 +104,7 @@ def piecewise_linear(x, y, breaking_points=None, min_smoothing=1e5, refine=True,
     if verbose:
         print("Smoothing: {:.2f}".format(smoothing))
     
-    rs = [(sp.stats.linregress(x[s:e], y[s:e]), s, e) for s, e in zip(breaking_points[:-1], breaking_points[1:])]
+    rs = [(stats.linregress(x[s:e], y[s:e]), s, e) for s, e in zip(breaking_points[:-1], breaking_points[1:])]
     
     xs = x[[r[1] for r in rs] + [rs[-1][2]]]
     ys = [r.slope * x[[start, end]] + r.intercept for r, start, end in rs]
