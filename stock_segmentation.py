@@ -193,7 +193,7 @@ def piecewise_linear(x, y, breaking_points=None, smoothing=1e5, refine=True, ver
     return rs, xs, ys
     
 def optimal_piecewise_linear(x, y, grid_size, granularity_penalty=0.1, smoothing_min=None, 
-                             smoothing_max=None, min_points_per_segment=3, verbose=0):
+                             smoothing_max=None, min_points_per_segment=3, verbose=0, fast=False):
     if smoothing_max is None:
         smoothing_max = np.sum((y - np.mean(y))**2)
     
@@ -247,28 +247,31 @@ def optimal_piecewise_linear(x, y, grid_size, granularity_penalty=0.1, smoothing
         return (1 - granularity_penalty) * mad(rs, x, y) / max_mad + \
             granularity_penalty * len(rs) / max_granularity
 
+    smoothing_by_bp_num = dict()
+    for smoothing in np.linspace(smoothing_min, smoothing_max, grid_size):
+        breaking_points_num = len(piecewise_linear(x, y, smoothing=smoothing)[0]) - 1
+        if breaking_points_num in smoothing_by_bp_num:
+            continue
+            
+        if breaking_points_num == 1:
+            break
+            
+        smoothing_by_bp_num[breaking_points_num] = smoothing
+        
     min_penalty = penalty(rs)
-    for i, smoothing in enumerate(np.linspace(smoothing_min, smoothing_max, grid_size)):
+    for smoothing in smoothing_by_bp_num.values():
         rs, xs, ys = piecewise_linear(x, y, smoothing=smoothing)
-#         breaking_points = [r[1] for r in rs] + [rs[-1][2]]
-#         breaking_points = refine_optimize(x, y, breaking_points)
-#         rs = piecewise_linear(x, y, breaking_points=breaking_points)[0]
+        if not fast:
+            breaking_points = [r[1] for r in rs] + [rs[-1][2]]
+            breaking_points = refine_optimize(x, y, breaking_points)
+            rs = piecewise_linear(x, y, breaking_points=breaking_points)[0]
         p = penalty(rs)
         if p < min_penalty:
             min_penalty = p
             optimal_smoothing = smoothing
             
             if verbose:
-                print("Step {}. Min penalty {}".format(i, min_penalty))
-    
-#     def opt_func(smoothing):
-#         rs = piecewise_linear(x, y, smoothing=smoothing)[0]
-# #         breaking_points = [r[1] for r in rs] + [rs[-1][2]]
-# #         breaking_points = refine_optimize(x, y, breaking_points)
-# #         rs = piecewise_linear(x, y, breaking_points=breaking_points)[0]
-#         return penalty(rs)
-    
-#     optimal_smoothing = optimize.minimize_scalar(opt_func, bounds=(smoothing_min, smoothing_max), method="Bounded").x
+                print("Smoothing {}. Min penalty {}".format(smoothing, min_penalty))
             
     return (smoothing_min, optimal_smoothing, smoothing_max), \
         piecewise_linear(x, y, smoothing=optimal_smoothing)
